@@ -14,11 +14,10 @@ defmodule Rumbl.VideoChannel do
         limit: 200,
         preload: [:user]
     )
-
     resp = %{annotations: Phoenix.View.render_many(annotations, AnnotationView,
-                                                  "annotation.json")}
+                                                   "annotation.json")}
 
-    {:ok, resp, assign(socket, :video_id, video_id)}
+    {:ok, resp, assign(socket, :video_id, video.id)}
   end
 
   def handle_in(event, params, socket) do
@@ -33,9 +32,9 @@ defmodule Rumbl.VideoChannel do
       |> Rumbl.Annotation.changeset(params)
 
     case Repo.insert(changeset) do
-      {:ok, annotation} ->
-        broadcast_annotation(socket, annotation)
-        Task.start_link(fn -> compute_additional_info(annotation, socket) end)
+      {:ok, ann} ->
+        broadcast_annotation(socket, ann)
+        Task.start_link(fn -> compute_additional_info(ann, socket) end)
         {:reply, :ok, socket}
 
       {:error, changeset} ->
@@ -58,6 +57,7 @@ defmodule Rumbl.VideoChannel do
         Repo.get_by!(Rumbl.User, username: result.backend)
         |> build_assoc(:annotations, video_id: ann.video_id)
         |> Rumbl.Annotation.changeset(attrs)
+
       case Repo.insert(info_changeset) do
         {:ok, info_ann} -> broadcast_annotation(socket, info_ann)
         {:error, _changeset} -> :ignore
